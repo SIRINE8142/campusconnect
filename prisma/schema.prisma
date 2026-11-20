@@ -1,0 +1,217 @@
+// Schéma de la base de données CampusConnect (SQLite + Prisma 7)
+// Les enums ci-dessous ne sont pas imposés par SQLite lui-même,
+// mais Prisma les valide au niveau de la couche applicative.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Rôle applicatif : un admin accède à l'espace de modération.
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+// Cycle de vie d'une demande : OPEN -> ACCEPTED -> COMPLETED
+enum RequestStatus {
+  OPEN
+  ACCEPTED
+  COMPLETED
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum SessionStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role     @default(STUDENT)
+  specialty    String?
+  // Année d'études (1 à 5). Un entier permet de comparer les niveaux
+  // dans le moteur de recommandation Smart Help.
+  level        Int?
+  avatarUrl    String?
+  bio          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  skills          UserSkill[]
+  authSessions    AuthSession[]
+  helpRequests    HelpRequest[]
+  proposals       HelpProposal[]
+  reviewsGiven    Review[]       @relation("ReviewsGiven")
+  reviewsReceived Review[]       @relation("ReviewsReceived")
+  notifications   Notification[]
+  reports         Report[]
+
+  @@map("users")
+}
+
+// Référentiel de compétences (ex. "JavaScript", "React", "Algèbre").
+model Skill {
+  id    String      @id @default(cuid())
+  name  String      @unique
+  users UserSkill[]
+
+  @@map("skills")
+}
+
+// Table pivot N-N entre User et Skill.
+model UserSkill {
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillId String
+
+  @@id([userId, skillId])
+  @@map("user_skills")
+}
+
+// Session d'authentification : le navigateur reçoit `id` en cookie httpOnly,
+// le serveur vérifie l'expiration à chaque requête.
+model AuthSession {
+  id        String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model HelpRequest {
+  id           String        @id @default(cuid())
+  title        String
+  description  String
+  // Matière demandée (ex. "React", "Base de données").
+  subject      String
+  // Niveau d'études visé (1 à 5).
+  level        Int
+  // Disponibilités exprimées en texte libre (ex. "jeudis après-midi").
+  availability String
+  status       RequestStatus @default(OPEN)
+  author       User          @relation(fields: [authorId], references: [id])
+  authorId     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  closedAt     DateTime?
+
+  proposals HelpProposal[]
+  session   StudySession?
+  reports   Report[]
+
+  @@index([status, subject])
+  @@index([authorId])
+  @@map("help_requests")
+}
+
+model HelpProposal {
+  id        String         @id @default(cuid())
+  message   String
+  status    ProposalStatus @default(PENDING)
+  request   HelpRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String
+  helper    User           @relation(fields: [helperId], references: [id])
+  helperId  String
+  createdAt DateTime       @default(now())
+
+  session StudySession?
+
+  // Un étudiant ne peut proposer qu'une seule fois par demande.
+  @@unique([requestId, helperId])
+  @@index([helperId])
+  @@map("help_proposals")
+}
+
+// Séance de révision organisée après acceptation d'une proposition.
+// Les participants sont dérivés : request.author + proposal.helper.
+model StudySession {
+  id          String        @id @default(cuid())
+  scheduledAt DateTime
+  subject     String
+  description String?
+  status      SessionStatus @default(PLANNED)
+  request     HelpRequest   @relation(fields: [requestId], references: [id])
+  requestId   String        @unique
+  proposal    HelpProposal  @relation(fields: [proposalId], references: [id])
+  proposalId  String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  reviews Review[]
+
+  @@map("study_sessions")
+}
+
+// Évaluation d'un participant par l'autre après clôture.
+// @@unique garantit une seule évaluation par participant et par séance.
+model Review {
+  id        String       @id @default(cuid())
+  rating    Int
+  comment   String?
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  author    User         @relation("ReviewsGiven", fields: [authorId], references: [id])
+  authorId  String
+  target    User         @relation("ReviewsReceived", fields: [targetId], references: [id])
+  targetId  String
+  createdAt DateTime     @default(now())
+
+  @@unique([sessionId, authorId])
+  @@map("reviews")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reason     String
+  details    String?
+  status     ReportStatus @default(PENDING)
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  reporterId String
+  request    HelpRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+
+  @@index([status])
+  @@map("reports")
+}
