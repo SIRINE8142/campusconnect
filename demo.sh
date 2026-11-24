@@ -58,8 +58,10 @@ acte2() {
   minikube status || minikube start --driver=docker
   pause
 
-  echo "→ Build de l'image DANS minikube (le pod la verra)…"
-  minikube image build -t campusconnect .
+  echo "→ Chargement de l'image Docker dans minikube…"
+  echo "  (minikube image load — 'image build' est bogué sous Windows)"
+  docker build -t campusconnect .
+  minikube image load campusconnect:latest
   pause
 
   echo "→ Déploiement de tous les manifests…"
@@ -78,8 +80,11 @@ acte2() {
   pause
 
   sh k8s/check.sh 2>/dev/null || true
-  echo "🌐 Ingress : http://campusconnect.local  (nécessite 'minikube tunnel' + hosts)"
-  echo "🌐 NodePort : http://$(minikube ip):30080"
+  echo ""
+  echo "🌐 Sous Windows/Docker : l'IP minikube n'est pas joignable directement."
+  echo "   → kubectl port-forward -n campusconnect svc/campusconnect-clusterip 4000:80"
+  echo "     puis http://localhost:4000"
+  echo "   → ou 'minikube tunnel' (admin) + http://campusconnect.local (fichier hosts)"
   pause
 }
 
