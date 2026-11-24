@@ -1,0 +1,14 @@
+# Lab 1 : Service ClusterIP — accessible uniquement à l'intérieur
+# du cluster (c'est lui que l'Ingress cible).
+apiVersion: v1
+kind: Service
+metadata:
+  name: campusconnect-clusterip
+  namespace: campusconnect
+spec:
+  type: ClusterIP
+  selector:
+    app: campusconnect
+  ports:
+    - port: 80
+      targetPort: 3000

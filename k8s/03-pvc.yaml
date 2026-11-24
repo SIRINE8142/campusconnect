@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: campusconnect-pvc
+  namespace: campusconnect
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ""       # force le binding sur le PV statique (sinon
+                             # le StorageClass par défaut créerait un PV dynamique)
+  resources:
+    requests:
+      storage: 500Mi

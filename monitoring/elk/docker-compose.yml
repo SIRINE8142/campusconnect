@@ -1,0 +1,57 @@
+# Stack ELK en Docker — équivalent du TP (apt/Linux) adapté à Windows.
+# Ordre du TP respecté : Elasticsearch → Kibana → collecte des logs.
+#
+#   cd monitoring/elk && docker compose up -d
+#
+# L'app (docker compose à la racine) écrit ses logs sur stdout ;
+# Filebeat les lit via le socket Docker et les pousse vers Elasticsearch,
+# visualisables dans Kibana (http://localhost:5601).
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.26
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m   # heap réduite comme dans le TP (jvm.options)
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.26
+    # Même version que Elasticsearch (règle du TP : stack homogène 7.x)
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.17.26
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - logstash
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.26
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+volumes:
+  es-data:

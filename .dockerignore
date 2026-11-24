@@ -1,0 +1,26 @@
+# Tout ce qui ne doit pas partir dans le contexte de build
+node_modules
+.next
+.git
+.gitignore
+
+# Bases locales et données d'exécution
+dev.db
+test.db
+*.db-journal
+
+# Secrets
+.env
+.env.local
+
+# Artifacts de tests / build
+coverage
+test-results
+playwright-report
+
+# Fichiers Docker eux-mêmes
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-entrypoint.sh
+.github

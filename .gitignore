@@ -61,3 +61,11 @@ next-env.d.ts
 .cursor/
 skills-lock.json
 AGENTS.md
+
+# terraform (le tfstate contient les secrets en clair)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log

@@ -159,6 +159,89 @@ par un tiers, acceptation par un non-auteur, proposition sur demande fermée,
 - **`proxy.ts`** : première barrière (cookie présent ?), la vraie vérif
   session+rôle reste côté serveur (`requireUser`/`requireAdmin`).
 
+## DevOps
+
+**Docker** (prérequis : Docker Desktop lancé) :
+
+```bash
+# Image seule
+docker build -t campusconnect .
+docker run -p 3000:3000 -e RUN_SEED=true campusconnect
+
+# Ou avec Compose (volume nommé → la base survit aux rebuilds)
+docker compose up --build          # http://localhost:3000
+```
+
+- `Dockerfile` multi-étapes : build avec dépendances complètes, image de
+  production allégée. `docker-entrypoint.sh` applique les migrations au
+  démarrage (`RUN_SEED=true` peuple la démo).
+- `docker-compose.yml` : base SQLite dans le volume `db-data`.
+
+**CI — GitHub Actions** (`.github/workflows/ci.yml`) : à chaque push/PR —
+`npm ci` → `prisma migrate deploy` → lint → Vitest → `next build` → build de
+l'image Docker. Le badge s'affiche dans l'onglet Actions du repo.
+
+### Kubernetes (Minikube)
+
+Manifests bruts dans `k8s/` (numérotés comme les TP). Prérequis :
+`minikube start` + `minikube addons enable ingress` + image dans le daemon
+Minikube : `minikube image build -t campusconnect .`
+
+```bash
+kubectl apply -f k8s/                 # tout le projet
+sh k8s/check.sh                       # diagnostic (pods, svc, pv/pvc, ingress)
+
+# Accès — 3 façons :
+minikube service campusconnect-nodeport -n campusconnect   # NodePort :30080
+echo "$(minikube ip) campusconnect.local" | sudo tee -a /etc/hosts
+# puis http://campusconnect.local                          # Ingress
+kubectl port-forward svc/campusconnect-clusterip 8080:80 -n campusconnect
+```
+
+Points clés : `replicas: 1` (SQLite + ReadWriteOnce = un seul pod),
+`storageClassName: ""` sur le PV/PVC pour forcer le binding statique
+(le défaut créerait un PV dynamique — piège du TP PV/PVC), sonde
+readiness sur `/login` (page publique).
+
+### Helm
+
+Chart propre dans `helm/campusconnect/` (deployment, service, ingress,
+PV/PVC, ConfigMap + Secret) :
+
+```bash
+helm install cc helm/campusconnect -n campusconnect
+helm list -n campusconnect
+helm upgrade cc helm/campusconnect -n campusconnect --set image.tag=v2
+helm rollback cc 1 -n campusconnect
+helm uninstall cc -n campusconnect
+
+# custom-values.yaml possible : -f custom-values.yaml
+helm template cc helm/campusconnect   # rendu sans appliquer
+```
+
+### Terraform
+
+`terraform/` déploie le projet via le provider `kubernetes` (mêmes
+ressources que `k8s/`, en IaC) :
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars   # adapter kube_context
+terraform init && terraform plan
+terraform apply          # crée ns, PV/PVC, ConfigMap, Secret, deploy, svc, ingress
+terraform destroy
+```
+
+### Monitoring
+
+- **Prometheus + Grafana** : `monitoring/prometheus-grafana.md` —
+  `kube-prometheus-stack` dans le ns `monitoring` (StatefulSet + DaemonSet),
+  port-forward Grafana `:3001` / Prometheus `:9090`, requêtes PromQL.
+- **ELK** : `monitoring/elk/` — Elasticsearch + Logstash + Filebeat +
+  Kibana en Docker (`cd monitoring/elk && docker compose up -d`),
+  logs du conteneur indexés dans `campusconnect-*`, visibles sur :5601.
+
+
 ## Limites connues
 
 - Photo de profil par URL externe (pas d'upload de fichier).

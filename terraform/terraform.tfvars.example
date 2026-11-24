@@ -1,0 +1,6 @@
+# Copier en terraform.tfvars et adapter si besoin
+kube_context = "minikube"     # ou "kind-kind", "docker-desktop"
+image        = "campusconnect:latest"
+namespace    = "campusconnect"
+ingress_host = "campusconnect.local"
+run_seed     = true

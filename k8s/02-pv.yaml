@@ -1,0 +1,21 @@
+# PV/PVC : la base SQLite (dev.db) doit survivre aux redémarrages du pod.
+# hostPath : le fichier vit sur le nœud Minikube (comme dans le TP).
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: campusconnect-pv
+  labels:
+    app: campusconnect
+spec:
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce          # un seul pod à la fois (SQLite !)
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""       # PV statique : désactive le provisionnement dynamique
+  claimRef:                  # réservé à notre PVC (leçon du TP PV/PVC)
+    name: campusconnect-pvc
+    namespace: campusconnect
+  hostPath:
+    path: /data/campusconnect
+    type: DirectoryOrCreate

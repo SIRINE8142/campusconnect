@@ -1,0 +1,20 @@
+CampusConnect déployé !
+=======================
+
+Release : {{ .Release.Name }} (namespace {{ .Release.Namespace }})
+
+{{- if .Values.ingress.enabled }}
+URL : http://{{ .Values.ingress.host }}
+      (penser à ajouter "$(minikube ip) {{ .Values.ingress.host }}" dans /etc/hosts)
+{{- else if eq .Values.service.type "NodePort" }}
+Accès : minikube service {{ include "campusconnect.fullname" . }} -n {{ .Release.Namespace }}
+{{- else }}
+Accès : kubectl port-forward svc/{{ include "campusconnect.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+        puis http://localhost:8080
+{{- end }}
+
+Commandes utiles :
+  kubectl get pods -l app={{ .Chart.Name }} -n {{ .Release.Namespace }}
+  helm get manifest {{ .Release.Name }} -n {{ .Release.Namespace }}
+  helm upgrade {{ .Release.Name }} ./helm/campusconnect -n {{ .Release.Namespace }}
+  helm rollback {{ .Release.Name }} 1 -n {{ .Release.Namespace }}

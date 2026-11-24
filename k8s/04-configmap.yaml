@@ -1,0 +1,12 @@
+# Lab ConfigMaps/Secrets : la config non sensible va dans une ConfigMap,
+# injectée comme variables d'environnement dans le pod.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: campusconnect-config
+  namespace: campusconnect
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  RUN_SEED: "true"            # peuple la base de démo au 1er démarrage
+  NEXT_TELEMETRY_DISABLED: "1"

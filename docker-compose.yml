@@ -1,0 +1,19 @@
+# Lancement complet : docker compose up --build
+# Le conteneur applique les migrations au démarrage
+# (voir docker-entrypoint.sh). La base SQLite vit dans
+# le volume nommé db-data → les données survivent aux rebuilds.
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # dev.db dans le volume, pas dans l'image
+      DATABASE_URL: "file:/app/data/dev.db"
+      # RUN_SEED: "true"   # décommenter pour peupler la démo au 1er lancement
+    volumes:
+      - db-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  db-data:

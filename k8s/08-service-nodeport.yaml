@@ -1,0 +1,15 @@
+# Lab 1 : Service NodePort — accès direct depuis l'extérieur
+# via le port 30080 du nœud Minikube (sans passer par l'Ingress).
+apiVersion: v1
+kind: Service
+metadata:
+  name: campusconnect-nodeport
+  namespace: campusconnect
+spec:
+  type: NodePort
+  selector:
+    app: campusconnect
+  ports:
+    - port: 80
+      targetPort: 3000
+      nodePort: 30080

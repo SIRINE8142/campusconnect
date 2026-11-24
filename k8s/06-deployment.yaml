@@ -1,0 +1,52 @@
+# Lab 1 : Deployment de l'application.
+# replicas: 1 OBLIGATOIRE — SQLite + volume ReadWriteOnce ne supportent
+# pas plusieurs pods en écriture simultanée.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campusconnect
+  namespace: campusconnect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: campusconnect
+  template:
+    metadata:
+      labels:
+        app: campusconnect
+    spec:
+      containers:
+        - name: app
+          image: campusconnect:latest      # build local (voir README)
+          imagePullPolicy: IfNotPresent    # image locale Minikube, pas de registry
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: campusconnect-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: campusconnect-secret
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: data
+              mountPath: /app/data         # dev.db y vit (cf. entrypoint)
+          readinessProbe:                  # pas de trafic tant que l'app n'est pas prête
+            httpGet:
+              path: /login                 # page publique → 200 sans session
+              port: 3000
+            initialDelaySeconds: 10        # migrations Prisma au démarrage
+            periodSeconds: 5
+          livenessProbe:                   # redémarre le pod s'il est mort
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: campusconnect-pvc

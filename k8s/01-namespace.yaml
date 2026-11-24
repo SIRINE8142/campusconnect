@@ -1,0 +1,5 @@
+# Lab : isolation du projet dans un namespace dédié
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: campusconnect

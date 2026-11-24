@@ -1,0 +1,23 @@
+# Lab 2 : Ingress NGINX — exposition sur http://campusconnect.local
+# Prérequis : minikube addons enable ingress
+#           + ajouter "$(minikube ip) campusconnect.local" dans /etc/hosts
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: campusconnect-ingress
+  namespace: campusconnect
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: campusconnect.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: campusconnect-clusterip
+                port:
+                  number: 80

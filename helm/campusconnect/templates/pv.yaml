@@ -1,0 +1,21 @@
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "campusconnect.fullname" . }}-pv
+  labels:
+    {{- include "campusconnect.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.persistence.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: {{ .Values.persistence.storageClassName | quote }}
+  claimRef:
+    name: {{ include "campusconnect.fullname" . }}-pvc
+    namespace: {{ .Release.Namespace }}
+  hostPath:
+    path: {{ .Values.persistence.hostPath }}
+    type: DirectoryOrCreate
+{{- end }}
