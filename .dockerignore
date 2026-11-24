@@ -22,5 +22,4 @@ playwright-report
 Dockerfile
 .dockerignore
 docker-compose.yml
-docker-entrypoint.sh
 .github
